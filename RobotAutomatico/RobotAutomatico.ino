@@ -22,9 +22,9 @@ const int LED_PIN = 13; // LED pin - active-high
 int const QUIET = 0;
 int const STILL = 1;
 int const MOVE_FORWARD = 2;
-int const MOVE_BACKWARDS = 3;
+int const MOVE_BACKWARDS = 5;
 int const MOVE_RIGHT = 4;
-int const MOVE_LEFT = 5;
+int const MOVE_LEFT = 3;
 
 
 int IN4 = 7;
@@ -59,6 +59,13 @@ unsigned long movementMillis = 0;
   
 long interval = 900;           // interval at which to blink (milliseconds)
 
+
+#define SCANNING 1
+#define MOVING    2
+
+int status = SCANNING;
+
+int pathcounter=0;
 
 bool checkproximity(unsigned long mvmMillis)
 {
@@ -100,11 +107,11 @@ bool checkobstacle()
   if (distance == 0) {
       // ikely some error
       return false;
-  } else if (distance < 4) {
+  } else if (distance < 9) {
       motorstate = MOVE_BACKWARDS;
       previousMillis = millis();  
       movementMillis = millis();
-      interval = 100;
+      interval = 200;
       return true;
   } else if (distance < 12) {  
       //Serial.print("OBSTACLE !");Serial.println(distance);
@@ -170,31 +177,45 @@ void loop() {
     previousMillis = currentMillis;
     movementMillis = currentMillis;
     interval = 900;
+    pathcounter=0;
   }
   
   if (currentMillis - previousMillis >= interval) {
       // save the last time you blinked the LED
       previousMillis = currentMillis;
 
-      if (checkproximity(movementMillis) && motorstate == QUIET && !obstacle) {
-          motorstate = MOVE_FORWARD;
-          previousMillis = currentMillis;  
-          movementMillis = currentMillis;
-          interval = 900;
-      } else {
-        int whattodo = random(2);
-  
-        if (whattodo == 0) {
-          motorstate = MOVE_LEFT;
-          movementMillis = currentMillis;
-          interval = 100;
-        } else if (motorstate == MOVE_LEFT) {
-          motorstate = QUIET;
-          interval = 2000;
+      if (status == SCANNING) {
+        pathcounter++;
+        if (checkproximity(movementMillis) && motorstate == QUIET && !obstacle) {
+            motorstate = MOVE_FORWARD;
+            previousMillis = currentMillis;  
+            movementMillis = currentMillis;
+            interval = 900;
+            pathcounter=0;
         } else {
           motorstate = QUIET;
-          interval = 900;
+          interval = 900;   
         }
+        if (pathcounter>20)
+        {
+          pathcounter = 0;
+          motorstate = QUIET;
+          interval = 900;
+          status = MOVING;
+        }
+      } else {
+        pathcounter++;
+        if (pathcounter>6)
+        {
+          pathcounter = 0;
+          motorstate = QUIET;
+          interval = 900;
+          status = SCANNING;
+        }
+        int action = random(3);
+        interval = 200*random(4);
+        motorstate = action + 2;
+
       }
 
   }
