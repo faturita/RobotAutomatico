@@ -7,9 +7,14 @@
  * If you connect a LED or something into pin 8, you should see
  * it blinking.
  * 
+ * The PIR motion sensor has a three-pin JST connector terminating it. Connect
+the wire colors like this:
+ * Black: D2 - signal output (pulled up internally)
+ * White: GND
+ * Red: 5V
  */
 
-const int MOTION_PIN = 2; // Pin connected to motion detector
+const int MOTION_PIN = 11; // Pin connected to motion detector
 const int LED_PIN = 13; // LED pin - active-high
 
 
@@ -22,14 +27,22 @@ int const MOVE_RIGHT = 4;
 int const MOVE_LEFT = 5;
 
 
-int IN4 = 6;
-int IN3 = 5;
-int IN2 = 4;
-int IN1 = 3;
+int IN4 = 7;
+int IN3 = 6;
+int IN2 = 5;
+int IN1 = 4;
+
+#define trigPin 2
+#define echoPin 3
 
 int motorstate = QUIET;
 
 void setup() {
+  //Serial.begin (9600);
+    
+  pinMode(trigPin, OUTPUT_FAST);
+  pinMode(echoPin, INPUT_FAST);
+  
   pinMode (IN4, OUTPUT);    // Input4 conectada al pin 4
   pinMode (IN3, OUTPUT);    // Input3 conectada al pin 5
   pinMode (IN2, OUTPUT);    // Input4 conectada al pin 3
@@ -42,30 +55,69 @@ void setup() {
 }
 
 unsigned long previousMillis = 0;        // will store last time LED was updated
+unsigned long movementMillis = 0;
+  
+long interval = 900;           // interval at which to blink (milliseconds)
 
-long interval = 500;           // interval at which to blink (milliseconds)
 
-
-bool checkproximity()
+bool checkproximity(unsigned long mvmMillis)
 {
+  bool proximityBool = false;
   int proximity = digitalRead(MOTION_PIN);
   if (proximity == LOW) // If the sensor's output goes low, motion is detected
   {
     digitalWrite(LED_PIN, HIGH);
     //Serial.println("Motion detected!");
-    return true;
+    proximityBool = true;
   }
   else
   {
     digitalWrite(LED_PIN, LOW);
     //Serial.println(".");
-    return false;
+    proximityBool = false;
   }  
+
+  if ( ((millis() - mvmMillis)>=4000) && proximityBool)
+  {
+    return true;
+  } else {
+    return false;
+  }
+  
+}
+
+bool checkobstacle()
+{
+  long duration, distance;
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = (duration / 2) / 29.1;
+  //Serial.println(distance);
+  if (distance == 0) {
+      // ikely some error
+      return false;
+  } else if (distance < 4) {
+      motorstate = MOVE_BACKWARDS;
+      previousMillis = millis();  
+      movementMillis = millis();
+      interval = 100;
+      return true;
+  } else if (distance < 12) {  
+      //Serial.print("OBSTACLE !");Serial.println(distance);
+      return true;
+  } else {
+    return false;
+  }
 }
 
 
 
 void loop() {
+  bool obstacle = checkobstacle();
 
   switch (motorstate)
   {
@@ -111,24 +163,38 @@ void loop() {
   }
   unsigned long currentMillis = millis();
 
-  if (checkproximity())
+
+  if (checkproximity(movementMillis) && motorstate == QUIET && !obstacle)
   {
     motorstate = MOVE_FORWARD;
     previousMillis = currentMillis;
+    movementMillis = currentMillis;
+    interval = 900;
   }
   
   if (currentMillis - previousMillis >= interval) {
       // save the last time you blinked the LED
       previousMillis = currentMillis;
 
-      if (checkproximity()) {
+      if (checkproximity(movementMillis) && motorstate == QUIET && !obstacle) {
           motorstate = MOVE_FORWARD;
           previousMillis = currentMillis;  
+          movementMillis = currentMillis;
+          interval = 900;
       } else {
-        int whattodo = random(5);
+        int whattodo = random(2);
   
-        if (whattodo == 0) motorstate = MOVE_LEFT;
-        else motorstate = QUIET;
+        if (whattodo == 0) {
+          motorstate = MOVE_LEFT;
+          movementMillis = currentMillis;
+          interval = 100;
+        } else if (motorstate == MOVE_LEFT) {
+          motorstate = QUIET;
+          interval = 2000;
+        } else {
+          motorstate = QUIET;
+          interval = 900;
+        }
       }
 
   }
