@@ -73,17 +73,16 @@ void transmitsensors() {
   char aux[len];  //36
   memcpy(&aux, &sensor, len);
 
-  Serial.write('S');
-  Serial.write((uint8_t *)&aux, len);
-  Serial.write('E');
-
-
   if (debug) {
     Serial.println('S');
     Serial.print("Cx:"); Serial.println(sensor.acx);
     Serial.print("Cy:"); Serial.println(sensor.acy);
     Serial.print("Cz:"); Serial.println(sensor.acz);
     Serial.println(']');
+  } else {
+    Serial.write('S');
+    Serial.write((uint8_t *)&aux, len);
+    Serial.write('E');
   }
 
 
